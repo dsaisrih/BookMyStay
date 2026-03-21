@@ -1,10 +1,16 @@
 /**
  * Author: D SAI SRI HARSHIT
- * Use Case 8: Booking History & Reporting
+ * Use Case 9: Error Handling & Validation
  */
 
-import java.io.*;
 import java.util.*;
+
+// Custom Exception
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
+    }
+}
 
 // Room Inventory
 class RoomInventory {
@@ -12,61 +18,40 @@ class RoomInventory {
 
     public RoomInventory() {
         rooms = new HashMap<>();
-        rooms.put("Single", 5);
-        rooms.put("Double", 3);
-        rooms.put("Suite", 2);
+        rooms.put("Single", 2);
+        rooms.put("Double", 2);
+        rooms.put("Suite", 1);
     }
 
-    public Map<String, Integer> getRooms() {
-        return rooms;
+    public boolean isValidRoomType(String roomType) {
+        return rooms.containsKey(roomType);
     }
 
-    public void setRoom(String type, int count) {
-        rooms.put(type, count);
+    public boolean isAvailable(String roomType) {
+        return rooms.get(roomType) > 0;
     }
 
-    public void display() {
-        System.out.println("\nCurrent Inventory:");
-        for (String type : rooms.keySet()) {
-            System.out.println(type + ": " + rooms.get(type));
-        }
+    public void bookRoom(String roomType) {
+        rooms.put(roomType, rooms.get(roomType) - 1);
     }
 }
 
-// Persistence Service
-class FilePersistenceService {
+// Validator
+class ReservationValidator {
 
-    // Save inventory to file
-    public void saveInventory(RoomInventory inventory, String filePath) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-            for (Map.Entry<String, Integer> entry : inventory.getRooms().entrySet()) {
-                writer.write(entry.getKey() + ":" + entry.getValue());
-                writer.newLine();
-            }
-            System.out.println("Inventory saved successfully.");
-        } catch (IOException e) {
-            System.out.println("Error saving inventory.");
-        }
-    }
+    public void validate(String guestName, String roomType, RoomInventory inventory)
+            throws InvalidBookingException {
 
-    // Load inventory from file
-    public void loadInventory(RoomInventory inventory, String filePath) {
-        File file = new File(filePath);
-
-        if (!file.exists()) {
-            System.out.println("No valid inventory data found. Starting fresh.");
-            return;
+        if (guestName == null || guestName.trim().isEmpty()) {
+            throw new InvalidBookingException("Guest name cannot be empty");
         }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                inventory.setRoom(parts[0], Integer.parseInt(parts[1]));
-            }
-            System.out.println("Inventory loaded successfully.");
-        } catch (Exception e) {
-            System.out.println("Error loading inventory. Starting fresh.");
+        if (!inventory.isValidRoomType(roomType)) {
+            throw new InvalidBookingException("Invalid room type selected");
+        }
+
+        if (!inventory.isAvailable(roomType)) {
+            throw new InvalidBookingException("Room not available");
         }
     }
 }
@@ -76,20 +61,32 @@ public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        System.out.println("System Recovery");
+        System.out.println("Booking Validation\n");
+
+        Scanner scanner = new Scanner(System.in);
 
         RoomInventory inventory = new RoomInventory();
-        FilePersistenceService service = new FilePersistenceService();
+        ReservationValidator validator = new ReservationValidator();
 
-        String filePath = "inventory.txt";
+        try {
+            System.out.print("Enter Guest Name: ");
+            String name = scanner.nextLine();
 
-        // Load previous state
-        service.loadInventory(inventory, filePath);
+            System.out.print("Enter Room Type (Single/Double/Suite): ");
+            String roomType = scanner.nextLine();
 
-        // Display current state
-        inventory.display();
+            // Validation
+            validator.validate(name, roomType, inventory);
 
-        // Save state
-        service.saveInventory(inventory, filePath);
+            // Booking
+            inventory.bookRoom(roomType);
+
+            System.out.println("Booking successful!");
+
+        } catch (InvalidBookingException e) {
+            System.out.println("Booking failed: " + e.getMessage());
+        } finally {
+            scanner.close();
+        }
     }
 }
