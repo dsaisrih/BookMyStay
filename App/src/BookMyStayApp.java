@@ -1,6 +1,6 @@
 /**
  * Author: D SAI SRI HARSHIT
- * Use Case 10: Booking Cancellation & Inventory Rollback
+ * Use Case 11: Concurrent Booking Simulation
  */
 
 import java.io.*;
@@ -17,71 +17,56 @@ class RoomInventory {
         rooms.put("Suite", 2);
     }
 
-    public void bookRoom(String roomType) {
-        rooms.put(roomType, rooms.get(roomType) - 1);
+    public Map<String, Integer> getRooms() {
+        return rooms;
     }
 
-    public void releaseRoom(String roomType) {
-        rooms.put(roomType, rooms.get(roomType) + 1);
+    public void setRoom(String type, int count) {
+        rooms.put(type, count);
     }
 
-    public int getAvailability(String roomType) {
-        return rooms.get(roomType);
+    public void display() {
+        System.out.println("\nCurrent Inventory:");
+        for (String type : rooms.keySet()) {
+            System.out.println(type + ": " + rooms.get(type));
+        }
     }
 }
 
-// Cancellation Service
-class CancellationService {
+// Persistence Service
+class FilePersistenceService {
 
-    // Map: reservationId -> roomType
-    private Map<String, String> reservationRoomTypeMap;
-
-    // Stack for rollback history (LIFO)
-    private Stack<String> rollbackStack;
-
-    public CancellationService() {
-        reservationRoomTypeMap = new HashMap<>();
-        rollbackStack = new Stack<>();
+    // Save inventory to file
+    public void saveInventory(RoomInventory inventory, String filePath) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (Map.Entry<String, Integer> entry : inventory.getRooms().entrySet()) {
+                writer.write(entry.getKey() + ":" + entry.getValue());
+                writer.newLine();
+            }
+            System.out.println("Inventory saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving inventory.");
+        }
     }
 
-    // Register booking
-    public void registerBooking(String reservationId, String roomType) {
-        reservationRoomTypeMap.put(reservationId, roomType);
-    }
+    // Load inventory from file
+    public void loadInventory(RoomInventory inventory, String filePath) {
+        File file = new File(filePath);
 
-    // Cancel booking
-    public void cancelBooking(String reservationId, RoomInventory inventory) {
-
-        if (!reservationRoomTypeMap.containsKey(reservationId)) {
-            System.out.println("Invalid cancellation. Reservation not found.");
+        if (!file.exists()) {
+            System.out.println("No valid inventory data found. Starting fresh.");
             return;
         }
 
-        String roomType = reservationRoomTypeMap.get(reservationId);
-
-        // Restore inventory
-        inventory.releaseRoom(roomType);
-
-        // Push to rollback stack
-        rollbackStack.push(reservationId);
-
-        // Remove booking
-        reservationRoomTypeMap.remove(reservationId);
-
-        System.out.println("Booking cancelled successfully. Inventory restored for room type: " + roomType);
-    }
-
-    // Show rollback history
-    public void showRollbackHistory() {
-        System.out.println("\nRollback History (Most Recent First):");
-
-        if (rollbackStack.isEmpty()) {
-            System.out.println("No cancellations yet.");
-            return;
-        }
-
-        for (int i = rollbackStack.size() - 1; i >= 0; i--) {
-            System.out.println("Released Reservation ID: " + rollbackStack.get(i));
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(":");
+                inventory.setRoom(parts[0], Integer.parseInt(parts[1]));
+            }
+            System.out.println("Inventory loaded successfully.");
+        } catch (Exception e) {
+            System.out.println("Error loading inventory. Starting fresh.");
         }
     }
 }
@@ -91,24 +76,20 @@ public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        System.out.println("Booking Cancellation\n");
+        System.out.println("System Recovery");
 
         RoomInventory inventory = new RoomInventory();
-        CancellationService service = new CancellationService();
+        FilePersistenceService service = new FilePersistenceService();
 
-        // Simulate booking
-        String reservationId = "Single-1";
-        service.registerBooking(reservationId, "Single");
-        inventory.bookRoom("Single");
+        String filePath = "inventory.txt";
 
-        // Cancel booking
-        service.cancelBooking(reservationId, inventory);
+        // Load previous state
+        service.loadInventory(inventory, filePath);
 
-        // Show rollback history
-        service.showRollbackHistory();
+        // Display current state
+        inventory.display();
 
-        // Show updated inventory
-        System.out.println("\nUpdated Single Room Availability: " +
-                inventory.getAvailability("Single"));
+        // Save state
+        service.saveInventory(inventory, filePath);
     }
 }
