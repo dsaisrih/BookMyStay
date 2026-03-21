@@ -1,156 +1,95 @@
+/**
+ * Author: D SAI SRI HARSHIT
+ * Use Case 9: Error Handling & Validation
+ */
+
+import java.io.*;
 import java.util.*;
 
-/*
-=====================================================
-Commit 1: Create Reservation Class
-Author: D SAI SRI HARSHIT
-Description:
-Created Reservation class to store
-guest name and requested room type.
-=====================================================
-*/
-
-class Reservation {
-
-    private String guestName;
-    private String roomType;
-
-    public Reservation(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
-    }
-
-    public String getGuestName() {
-        return guestName;
-    }
-
-    public String getRoomType() {
-        return roomType;
-    }
-}
-
-
-/*
-=====================================================
-Commit 2: Implement RoomInventory
-Author: D SAI SRI HARSHIT
-Description:
-Added RoomInventory class to maintain
-room availability for different room types.
-=====================================================
-*/
-
+// Room Inventory
 class RoomInventory {
-
-    private Map<String, Integer> availability;
+    private Map<String, Integer> rooms;
 
     public RoomInventory() {
-        availability = new HashMap<>();
-
-        availability.put("Single", 2);
-        availability.put("Double", 1);
-        availability.put("Suite", 1);
+        rooms = new HashMap<>();
+        rooms.put("Single", 5);
+        rooms.put("Double", 3);
+        rooms.put("Suite", 2);
     }
 
-    public int getAvailableRooms(String type) {
-        return availability.getOrDefault(type, 0);
+    public Map<String, Integer> getRooms() {
+        return rooms;
     }
 
-    public void decrementRoom(String type) {
-        availability.put(type, availability.get(type) - 1);
+    public void setRoom(String type, int count) {
+        rooms.put(type, count);
+    }
+
+    public void display() {
+        System.out.println("\nCurrent Inventory:");
+        for (String type : rooms.keySet()) {
+            System.out.println(type + ": " + rooms.get(type));
+        }
     }
 }
 
+// Persistence Service
+class FilePersistenceService {
 
-/*
-=====================================================
-Commit 3: Implement RoomAllocationService
-Author: D SAI SRI HARSHIT
-Description:
-Created service to allocate rooms to guests.
-Ensures unique room IDs and tracks allocated rooms.
-=====================================================
-*/
-
-class RoomAllocationService {
-
-    // Set ensures unique room IDs
-    private Set<String> allocatedRoomIds;
-
-    // Map to store allocated room IDs by type
-    private Map<String, Set<String>> assignedRoomsByType;
-
-    public RoomAllocationService() {
-
-        allocatedRoomIds = new HashSet<>();
-        assignedRoomsByType = new HashMap<>();
+    // Save inventory to file
+    public void saveInventory(RoomInventory inventory, String filePath) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (Map.Entry<String, Integer> entry : inventory.getRooms().entrySet()) {
+                writer.write(entry.getKey() + ":" + entry.getValue());
+                writer.newLine();
+            }
+            System.out.println("Inventory saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving inventory.");
+        }
     }
 
-    // Allocate room for reservation
-    public void allocateRoom(Reservation reservation, RoomInventory inventory) {
+    // Load inventory from file
+    public void loadInventory(RoomInventory inventory, String filePath) {
+        File file = new File(filePath);
 
-        String roomType = reservation.getRoomType();
-
-        if (inventory.getAvailableRooms(roomType) <= 0) {
-
-            System.out.println("No rooms available for " + roomType);
+        if (!file.exists()) {
+            System.out.println("No valid inventory data found. Starting fresh.");
             return;
         }
 
-        String roomId = generateRoomId(roomType);
-
-        allocatedRoomIds.add(roomId);
-
-        assignedRoomsByType
-                .computeIfAbsent(roomType, k -> new HashSet<>())
-                .add(roomId);
-
-        inventory.decrementRoom(roomType);
-
-        System.out.println("Booking confirmed for Guest: "
-                + reservation.getGuestName()
-                + ", Room ID: "
-                + roomId);
-    }
-
-    // Generate unique room ID
-    private String generateRoomId(String roomType) {
-
-        int count = assignedRoomsByType
-                .getOrDefault(roomType, new HashSet<>())
-                .size() + 1;
-
-        return roomType + "-" + count;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(":");
+                inventory.setRoom(parts[0], Integer.parseInt(parts[1]));
+            }
+            System.out.println("Inventory loaded successfully.");
+        } catch (Exception e) {
+            System.out.println("Error loading inventory. Starting fresh.");
+        }
     }
 }
 
-
-/*
-=====================================================
-Commit 4: Create Main Application
-Author: D SAI SRI HARSHIT
-Description:
-Added main class to demonstrate
-Room Allocation processing.
-=====================================================
-*/
-
+// Main Class
 public class BookMyStayApp {
 
     public static void main(String[] args) {
 
-        System.out.println("Room Allocation Processing\n");
+        System.out.println("System Recovery");
 
         RoomInventory inventory = new RoomInventory();
+        FilePersistenceService service = new FilePersistenceService();
 
-        RoomAllocationService service = new RoomAllocationService();
+        String filePath = "inventory.txt";
 
-        Reservation r1 = new Reservation("Abhi", "Single");
-        Reservation r2 = new Reservation("Subha", "Single");
-        Reservation r3 = new Reservation("Vanmathi", "Suite");
+        // Load previous state
+        service.loadInventory(inventory, filePath);
 
-        service.allocateRoom(r1, inventory);
-        service.allocateRoom(r2, inventory);
-        service.allocateRoom(r3, inventory);
+        // Display current state
+        inventory.display();
+
+        // Save state
+        service.saveInventory(inventory, filePath);
     }
 }
