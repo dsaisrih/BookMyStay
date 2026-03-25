@@ -1,95 +1,72 @@
-/**
- * Author: D SAI SRI HARSHIT
- * Use Case 9: Error Handling & Validation
- */
-
-import java.io.*;
 import java.util.*;
 
-// Room Inventory
-class RoomInventory {
-    private Map<String, Integer> rooms;
+/**
+ * Author - D Sai Sri Harshit
+ *UseCase7- AddOnServiceSelection
+ * CLASS - AddOnService
+ * Represents an optional service.
+ */
+class AddOnService {
 
-    public RoomInventory() {
-        rooms = new HashMap<>();
-        rooms.put("Single", 5);
-        rooms.put("Double", 3);
-        rooms.put("Suite", 2);
+    private String serviceName;
+    private double cost;
+
+    public AddOnService(String serviceName, double cost) {
+        this.serviceName = serviceName;
+        this.cost = cost;
     }
 
-    public Map<String, Integer> getRooms() {
-        return rooms;
+    public String getServiceName() {
+        return serviceName;
     }
 
-    public void setRoom(String type, int count) {
-        rooms.put(type, count);
-    }
-
-    public void display() {
-        System.out.println("\nCurrent Inventory:");
-        for (String type : rooms.keySet()) {
-            System.out.println(type + ": " + rooms.get(type));
-        }
+    public double getCost() {
+        return cost;
     }
 }
 
-// Persistence Service
-class FilePersistenceService {
+/**
+ * CLASS - AddOnServiceManager
+ * Manages services for reservations.
+ */
+public class AddOnServiceManager {
 
-    // Save inventory to file
-    public void saveInventory(RoomInventory inventory, String filePath) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-            for (Map.Entry<String, Integer> entry : inventory.getRooms().entrySet()) {
-                writer.write(entry.getKey() + ":" + entry.getValue());
-                writer.newLine();
-            }
-            System.out.println("Inventory saved successfully.");
-        } catch (IOException e) {
-            System.out.println("Error saving inventory.");
-        }
+    private Map<String, List<AddOnService>> servicesByReservation;
+
+    public AddOnServiceManager() {
+        servicesByReservation = new HashMap<>();
     }
 
-    // Load inventory from file
-    public void loadInventory(RoomInventory inventory, String filePath) {
-        File file = new File(filePath);
-
-        if (!file.exists()) {
-            System.out.println("No valid inventory data found. Starting fresh.");
-            return;
-        }
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                inventory.setRoom(parts[0], Integer.parseInt(parts[1]));
-            }
-            System.out.println("Inventory loaded successfully.");
-        } catch (Exception e) {
-            System.out.println("Error loading inventory. Starting fresh.");
-        }
+    public void addService(String reservationId, AddOnService service) {
+        servicesByReservation
+                .computeIfAbsent(reservationId, k -> new ArrayList<>())
+                .add(service);
     }
-}
 
-// Main Class
-public class BookMyStayApp {
+    public double calculateTotalServiceCost(String reservationId) {
+        double total = 0.0;
 
+        List<AddOnService> services = servicesByReservation.get(reservationId);
+
+        if (services != null) {
+            for (AddOnService service : services) {
+                total += service.getCost();
+            }
+        }
+
+        return total;
+    }
+
+    // Sample main method (for testing)
     public static void main(String[] args) {
+        AddOnServiceManager manager = new AddOnServiceManager();
 
-        System.out.println("System Recovery");
+        manager.addService("R1", new AddOnService("Breakfast", 500));
+        manager.addService("R1", new AddOnService("Spa", 1500));
+        manager.addService("R1", new AddOnService("Airport Pickup", 800));
 
-        RoomInventory inventory = new RoomInventory();
-        FilePersistenceService service = new FilePersistenceService();
+        double total = manager.calculateTotalServiceCost("R1");
 
-        String filePath = "inventory.txt";
-
-        // Load previous state
-        service.loadInventory(inventory, filePath);
-
-        // Display current state
-        inventory.display();
-
-        // Save state
-        service.saveInventory(inventory, filePath);
+        System.out.println("Total Cost: " + total);
     }
 }
